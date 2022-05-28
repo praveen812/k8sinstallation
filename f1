@@ -1,0 +1,83 @@
+[200~Different ways of installing Kubernetes
+
+Play-with-k8s (https://labs.play-with-k8s) – ready-made Kubernetes Cluster available online.
+Minikube – install on the system where there are very limited system resources. Here we do not have a separate Kubernetes master and worker node architecture, we get all Kubernetes components packaged into one. It is all one setup. same system accesses the Kubernetes master and same system access the Kubernetes worker.
+Kubeadm – bare metal installation.
+Cloud Orchestration services: Kubernetes is hosted on Cloud and only need to define how many nodes in a cluster should be and size of CPU and RAM each node should contain.
+Google Kubernetes Engine (GKE), Amazon EKS and Azure Kubernetes Service (AKS).
+6 steps involved in creating Kubernetes cluster:
+Create VMs which are part of K8S cluster (master and worker nodes) - 4 CentOS VMs with 3 worker nodes and 1 master
+Disable SELinux and SWAP on all the nodes
+Install Kubeadm, Kubelet, Kubectl and Docker on all the nodes
+Start and enable docker and kubelet on all the nodes
+Initialize the master node
+Configure Pod network where all Pods can communicate with each other across all the nodes inside the cluster. There are various network plugins to configure pod network like wave, flannel and calico. We will install flannel in our example.
+Join worker node to the cluster
+************************************************************************************* Installing Kubernetes using "Kubeadm"
+*************************************************************************************
+1. Create 3 VMs - master(1) and worker(2) nodes
+Master: 2 vCPUs - 6GB Ram  and Worker: 1 vCPUs - 3GB RAM and OS:    Ubuntu/CentOS/RHEL 7
+2. PRE-Reqs: Disable Swap and install https support: Execute on all nodes (master & worker) as root user
+swapoff -a
+sed -i.bak -r 's/(.+ swap .+)/#\1/' /etc/fstab
+# Disable SELinux
+setenforce 0
+sed -i 's/enforcing/disabled/g' /etc/selinux/config
+HTTPS: apt-get update && apt-get install -y apt-transport-https
+3. Download & Install - Kubernetes kubeadm and docker
+Get kubernetes repo key:
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+Add kubernetes repo to manifest:
+cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
+deb http://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+ Install kubeadm and docker:
+ apt-get update && apt-get install -y kubelet kubeadm kubectl docker.io
+ Now Reboot all the nodes including master.
+ Check for docker service started and kubelet.
+ # Systemctl enable docker.service to start the service automatically after reboot. 
+ # service docker status
+ 4. Create K8S Cluster:
+ Initialize Kubeadm: kubeadm init --pod-network-cidr=10.240.0.0/16
+ a) If you want to run kubectl as "regular" user. Then, execute below.
+ mkdir -p $HOME/.kube
+ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+ sudochown $(id -u):$(id -g) $HOME/.kube/config
+ # Note down Join command for future use.
+ b)  Installing Flannel network-plug-in for cluster network
+ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+ check: kubectl get pods --all-namespaces
+ #kubectl get nodes
+ # kubectl get pods
+ # kubectl get pods –all-namepaces
+ # kubectl get namespaces
+ # kubectl get cluster-info
+ # kubectl get cluster-info dump
+ # kubectl  config view
+ # kubeadm config view
+ c)  Join "worker" nodes to the cluster
+ # Get exact join command from previous kubeadminit command output. 
+ or 
+ get join command by executing:
+ # kubeadm token create --print-join-command
+ kubeadm join 10.142.0.40:6443 --token 9xii6e.avuik4ciqrl1yacw --discovery-token-ca-cert-hash sha256:f7902e7a474d33b54f4f2fbdb4fd5e74163817e683333187736b65189ff36b7a
+ 7. Testing:
+ Display nodes status: # kubectl get no
+ Deploying sample application: # kubectl apply -f https://raw.githubusercontent.com/kubernetes/website/master/content/en/examples/controllers/nginx-deployment.yaml
+ Displaying Pod status: # kubectl get po -o wide
+ To delete the pods, delete the deployment because if you delete pods it gets recreated automatically
+ # kubectl delete deployment <deploymentname>
+ Installation Location: /etc/kubernetes
+ To get K8S Cluster Info: # kubectl cluster-info and # kubectl cluster-info dump
+
+ Taint the master node for allowing deployment:
+ # kubectl taint nodes --all node-role.kubernetes.io/master-
+
+
+
+
+
+
+
+
+
